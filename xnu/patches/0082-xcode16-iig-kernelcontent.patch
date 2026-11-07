@@ -11,6 +11,19 @@ diff -ru a/iokit/DriverKit/IORPC.h b/iokit/DriverKit/IORPC.h
  };
  typedef struct IORPC IORPC;
  
+diff -ru a/iokit/IOKit/IORPC.h b/iokit/IOKit/IORPC.h
+--- a/iokit/IOKit/IORPC.h	2026-11-07 20:52:03.563776058 +0200
++++ b/iokit/IOKit/IORPC.h	2026-11-07 20:52:03.565853342 +0200
+@@ -224,6 +224,9 @@
+ 	IORPCMessageMach * reply;
+ 	uint32_t           sendSize;
+ 	uint32_t           replySize;
++#ifdef KERNEL
++	IORPCMessage     * kernelContent;
++#endif /* KERNEL */
+ };
+ typedef struct IORPC IORPC;
+ 
 diff -ru a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
 --- a/iokit/Kernel/IOUserServer.cpp	2026-11-07 17:29:18.538991307 +0200
 +++ b/iokit/Kernel/IOUserServer.cpp	2026-11-07 17:29:18.624814622 +0200
