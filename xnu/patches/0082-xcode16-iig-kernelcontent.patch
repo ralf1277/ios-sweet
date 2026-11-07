@@ -1,0 +1,33 @@
+diff -ru a/iokit/DriverKit/IORPC.h b/iokit/DriverKit/IORPC.h
+--- a/iokit/DriverKit/IORPC.h	2026-11-07 17:29:18.537490800 +0200
++++ b/iokit/DriverKit/IORPC.h	2026-11-07 17:29:18.622344210 +0200
+@@ -224,6 +224,9 @@
+ 	IORPCMessageMach * reply;
+ 	uint32_t           sendSize;
+ 	uint32_t           replySize;
++#ifdef KERNEL
++	IORPCMessage     * kernelContent;
++#endif /* KERNEL */
+ };
+ typedef struct IORPC IORPC;
+ 
+diff -ru a/iokit/Kernel/IOUserServer.cpp b/iokit/Kernel/IOUserServer.cpp
+--- a/iokit/Kernel/IOUserServer.cpp	2026-11-07 17:29:18.538991307 +0200
++++ b/iokit/Kernel/IOUserServer.cpp	2026-11-07 17:29:18.624814622 +0200
+@@ -3209,7 +3209,7 @@
+ 		msgout = (typeof(msgout))ikm_header(replykmsg);
+ 	}
+ 
+-	IORPC rpc = { .message = msgin, .reply = msgout, .sendSize = msgin->msgh.msgh_size, .replySize = replyAlloc };
++	IORPC rpc = { .message = msgin, .reply = msgout, .sendSize = msgin->msgh.msgh_size, .replySize = replyAlloc, .kernelContent = IORPCMessageFromMach(msgin, false) };
+ 
+ 	if (object) {
+ 		kern_allocation_name_t prior;
+@@ -3358,6 +3358,7 @@
+ 	rpc.sendSize  = mach->msgh.msgh_size;
+ 	rpc.reply     = (IORPCMessageMach *) (p + inSize);
+ 	rpc.replySize = ((uint32_t) (sizeof(buffer.buffer) - inSize));    // inSize was checked
++	rpc.kernelContent = IORPCMessageFromMach(mach, false);
+ 
+ 	message->objects[0] = 0;
+ 	if ((action = OSDynamicCast(OSAction, object))) {
