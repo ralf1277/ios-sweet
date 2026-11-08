@@ -76,6 +76,37 @@ static int magic_ok(const char *m)
 
 typedef void (*xnu_entry_t)(uint64_t boot_args_pa);
 
+#ifdef BOARD_RENOIR
+/*
+ * boot.img v3 (renoir): ABL loads vendor_boot's ramdisk first and appends
+ * ours, so the payload is not at initrd-start. Scan for its magic with
+ * aligned loads (MMU off: Device memory faults on unaligned accesses).
+ */
+static uint64_t find_payload(uint64_t lo, uint64_t hi)
+{
+	for (uint64_t a = lo & ~7UL; a + 8 <= hi; a += 8) {
+		uint64_t w = *(volatile uint64_t *)a;
+		for (int b = 0; b < 8; b++) {
+			uint64_t at = a + b;
+			if (((w >> (8 * b)) & 0xff) == 'S' && at >= lo && at + 8 <= hi &&
+			    magic_ok((const char *)at))
+				return at;
+		}
+	}
+	return 0;
+}
+
+/* Slide the payload down to an 8-byte aligned base (dst < src, so a forward
+ * byte copy is safe). The vendor ramdisk it overwrites is never used. */
+static void slide_down(uint64_t dst, uint64_t src, uint64_t n)
+{
+	volatile uint8_t *d = (volatile uint8_t *)dst;
+	const volatile uint8_t *s = (const volatile uint8_t *)src;
+	for (uint64_t i = 0; i < n; i++)
+		d[i] = s[i];
+}
+#endif
+
 const char *loader_boot(uintptr_t dtb)
 {
 	uint64_t rd_start, rd_end;
@@ -85,6 +116,21 @@ const char *loader_boot(uintptr_t dtb)
 		return "no initrd in /chosen";
 	con_hex2("INITRD", "lo=", rd_start, "hi=", rd_end);
 
+#ifdef BOARD_RENOIR
+	uint64_t found = find_payload(rd_start, rd_end);
+	if (!found)
+		return "no SWEETXNU payload";
+	con_hex2("PAYLOAD", "at=", found, "size=", rd_end - found);
+	if (found != rd_start) {
+		uint64_t base = (rd_start + 7) & ~7UL;
+		if (found & 7)
+			slide_down(base, found, rd_end - found);
+		else
+			base = found;
+		rd_end = base + (rd_end - found);
+		rd_start = base;
+	}
+#endif
 	const struct payload *p = (const struct payload *)rd_start;
 	if (!magic_ok(p->magic))
 		return "no SWEETXNU payload";
