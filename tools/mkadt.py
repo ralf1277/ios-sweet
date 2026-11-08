@@ -248,6 +248,9 @@ if __name__ == '__main__':
         # framebuffer is reserved-memory splash_region; XNU goes in the upper
         # DDR bank (<0x1_00000000 0x1_00000000>), clear of every carve-out.
         FB, FB_SIZE = 0xe1000000, 0x2300000
+        # Its timer node uses the architected PPIs: virtual timer = PPI 11 =
+        # INTID 27 (sweet's Qualcomm DT used PPI 3 = INTID 19).
+        VTIMER_INTID = 27
     root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv or renoir)
     blob = adt.serialize(root)
     open(sys.argv[1], 'wb').write(blob)
