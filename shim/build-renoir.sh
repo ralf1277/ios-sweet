@@ -4,6 +4,7 @@
 # the DTB and vendor ramdisk; ABL merges them with this image).
 #   ./build-renoir.sh            -> out-renoir/shim-renoir-paint.img (milestone 0)
 #   ./build-renoir.sh full       -> out-renoir/shim-renoir.img (normal shim flow)
+#   ./build-renoir.sh full P.bin -> same, booting the xnu payload P.bin (tools/mkpayload.py)
 set -euo pipefail
 cd "$(dirname "$0")"
 CROSS=${CROSS:-aarch64-linux-gnu-}
@@ -28,8 +29,13 @@ $CC $CFLAGS -static -T shim.ld -Wl,--build-id=none -Wl,--no-warn-rwx-segments -W
 $OBJCOPY -O binary $O/shim.elf $O/Image
 size=$((16#$($NM $O/shim.elf | awk '$3=="_end"{print $1}')))
 truncate -s "$size" $O/Image
-# Empty newc cpio: ABL dislikes a zero-size ramdisk on some builds.
-(cd $O && rm -rf rd && mkdir rd && cd rd && find . | cpio -o -H newc --quiet | gzip -9 > ../ramdisk.bin)
+# Ramdisk: an xnu payload (tools/mkpayload.py) if given as $2, else an empty
+# newc cpio (ABL dislikes a zero-size ramdisk on some builds).
+if [ -n "${2:-}" ]; then
+	cp "$2" $O/ramdisk.bin
+else
+	(cd $O && rm -rf rd && mkdir rd && cd rd && find . | cpio -o -H newc --quiet | gzip -9 > ../ramdisk.bin)
+fi
 name=$([ "$MODE" = paint ] && echo shim-renoir-paint || echo shim-renoir)
 python3 ../tools/mkbootv3.py --kernel $O/Image --ramdisk $O/ramdisk.bin \
 	--os_version 13.0.0 --os_patch_level 2035-06 \
