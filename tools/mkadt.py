@@ -2,7 +2,7 @@
 """Build the minimal Apple Device Tree that the SWEET xnu needs to boot.
 
 Only what the early boot path actually reads (see NOTES.md); every MMIO
-address comes from the sweet live FDT. Usage:  mkadt.py OUT.adt [--dump] [--qemu] [--highmem]
+address comes from the sweet live FDT. Usage:  mkadt.py OUT.adt [--dump] [--qemu] [--highmem] [--renoir]
 """
 import hashlib, os, struct, sys
 
@@ -242,7 +242,13 @@ def build(seed=None, qemu=False, highmem=False):
 
 
 if __name__ == '__main__':
-    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv)
+    renoir = '--renoir' in sys.argv
+    if renoir:
+        # Xiaomi Mi 11 Lite 5G (SM7350 "shima"), from its live FDT: the splash
+        # framebuffer is reserved-memory splash_region; XNU goes in the upper
+        # DDR bank (<0x1_00000000 0x1_00000000>), clear of every carve-out.
+        FB, FB_SIZE = 0xe1000000, 0x2300000
+    root = build(qemu='--qemu' in sys.argv, highmem='--highmem' in sys.argv or renoir)
     blob = adt.serialize(root)
     open(sys.argv[1], 'wb').write(blob)
     if '--dump' in sys.argv:
