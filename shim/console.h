@@ -1,7 +1,11 @@
 #pragma once
 #include <stdint.h>
 
+#ifdef BOARD_RENOIR
+#define FB_BASE		0xe1000000UL	/* renoir reserved-memory splash_region (0x2300000) */
+#else
 #define FB_BASE		0x9c000000UL	/* reserved-memory cont_splash_region */
+#endif
 #define FB_W		1080
 #define FB_H		2400
 #define FB_STRIDE	(FB_W * 4)	/* a8r8g8b8, matches mainline simplefb */

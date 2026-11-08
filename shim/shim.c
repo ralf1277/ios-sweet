@@ -374,6 +374,25 @@ void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
 
+#ifdef RENOIR_PAINT_TEST
+	/* renoir milestone 0: does the command-mode panel show our pixels?
+	 * Paint with the MMU off, touch nothing but the framebuffer, then
+	 * return to fastboot. Three bands reveal the pixel format: clean
+	 * red/green/blue bands = a8r8g8b8; slanted or repeated bands = 24 bpp. */
+	stage = "paint";
+	for (int y = 0; y < FB_H; y++) {
+		uint32_t c = y < FB_H / 3 ? RED : y < 2 * FB_H / 3 ? GREEN : BLUE;
+		volatile uint32_t *line = con_fb + y * (FB_STRIDE / 4);
+		for (int x = 0; x < FB_W; x++)
+			line[x] = c;
+	}
+	__asm__ volatile("dsb sy" ::: "memory");
+	con_str("SHIM", "renoir milestone 0: paint test");
+	con_hex2("DTB", "at=", dtb, "magic=", dtb ? __builtin_bswap32(rd32(dtb)) : 0);
+	con_hex("EL", rsr("CurrentEL") >> 2);
+	reset(40);
+#endif
+
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";
 	con_clear(RED);
