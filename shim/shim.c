@@ -11,6 +11,9 @@
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
+#ifdef BOARD_RENOIR
+#include "touch.h"
+#endif
 
 #define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
 #define RESTART_BOOTLOADER	0x77665500U
@@ -374,6 +377,13 @@ void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
 
+#ifdef RENOIR_TOUCH_TEST
+	stage = "touch";
+	con_clear(0xff202040U);
+	con_str("SHIM", "renoir milestone T1: touch probe");
+	touch_probe();
+	reset(20);
+#endif
 #ifdef RENOIR_PAINT_TEST
 	/* renoir milestone 0: does the command-mode panel show our pixels?
 	 * Paint with the MMU off, touch nothing but the framebuffer, then
